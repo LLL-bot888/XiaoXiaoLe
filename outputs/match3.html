@@ -1,0 +1,532 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三消小游戏</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 25%, #e8eaf6 50%, #e0f7fa 75%, #e8f5e9 100%);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  user-select: none;
+}
+
+.game-wrapper {
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(16px);
+  border-radius: 28px;
+  padding: 32px 36px 36px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ec6ead, #7678ed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 2px;
+}
+
+.panel {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  font-size: 17px;
+}
+
+.panel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.panel-label {
+  font-size: 13px;
+  color: #999;
+  letter-spacing: 1px;
+}
+
+.panel-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #5c5c8a;
+}
+
+#grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 4px;
+  background: rgba(0,0,0,0.04);
+  padding: 8px;
+  border-radius: 18px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cell {
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.2s ease;
+  position: relative;
+}
+
+.cell:hover {
+  transform: scale(1.06);
+}
+
+.cell.selected {
+  box-shadow: 0 0 0 3px #7c6ff7, 0 0 12px rgba(124,111,247,0.5);
+  transform: scale(1.08);
+  z-index: 2;
+}
+
+.cell.flash {
+  animation: flashAnim 0.45s ease-in-out;
+}
+
+.cell.drop {
+  animation: dropAnim 0.35s ease-out;
+}
+
+@keyframes flashAnim {
+  0%   { transform: scale(1); opacity: 1; filter: brightness(1); }
+  25%  { transform: scale(1.15); opacity: 0.8; filter: brightness(1.6); }
+  50%  { transform: scale(1.2); opacity: 0.6; filter: brightness(1.8); }
+  75%  { transform: scale(0.9); opacity: 0.3; filter: brightness(2); }
+  100% { transform: scale(0); opacity: 0; filter: brightness(2.5); }
+}
+
+@keyframes dropAnim {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  40%  { transform: translateY(8%); }
+  70%  { transform: translateY(-4%); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-24px) scale(1.2); }
+}
+
+.score-pop {
+  position: absolute;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ec6ead;
+  pointer-events: none;
+  animation: floatUp 0.8s ease-out forwards;
+  z-index: 10;
+}
+
+.btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.25s ease;
+  color: #fff;
+}
+
+.btn-restart {
+  background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+  box-shadow: 0 4px 14px rgba(161,140,209,0.35);
+}
+
+.btn-restart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(161,140,209,0.5);
+}
+
+.btn-restart:active {
+  transform: translateY(0);
+}
+
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.game-over-overlay.show {
+  display: flex;
+}
+
+.game-over-card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 36px 44px;
+  text-align: center;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+  animation: popIn 0.3s ease-out;
+}
+
+@keyframes popIn {
+  0%   { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.game-over-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #5c5c8a;
+  margin-bottom: 8px;
+}
+
+.game-over-score {
+  font-size: 40px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ec6ead, #7678ed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="game-wrapper">
+  <div class="title">✨ 三消小游戏</div>
+
+  <div class="panel">
+    <div class="panel-item">
+      <span class="panel-label">🏆 分数</span>
+      <span class="panel-value" id="score">0</span>
+    </div>
+    <div class="panel-item">
+      <span class="panel-label">👟 剩余步数</span>
+      <span class="panel-value" id="moves">30</span>
+    </div>
+  </div>
+
+  <div id="grid"></div>
+
+  <button class="btn btn-restart" onclick="restartGame()">🔄 重新开始</button>
+</div>
+
+<div class="game-over-overlay" id="overlay">
+  <div class="game-over-card">
+    <div class="game-over-title">🎊 游戏结束</div>
+    <div class="game-over-score" id="finalScore">0</div>
+    <button class="btn btn-restart" onclick="restartGame()">🔄 再来一局</button>
+  </div>
+</div>
+
+<script>
+const ROWS = 8;
+const COLS = 8;
+const TILES = ['🍎','🍊','🍋','🍇','🍓','🫐'];
+const COLORS = [
+  '#fde0e7', '#fff2d6', '#fffde0',
+  '#e8e1f0', '#fce4ec', '#dcedf0'
+];
+const TOTAL_MOVES = 30;
+
+let grid = [];
+let score = 0;
+let movesLeft = TOTAL_MOVES;
+let selectedCell = null;
+let isAnimating = false;
+
+// ── Init ────────────────────────────────────────────────
+function initGrid() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      let tile;
+      do {
+        tile = Math.floor(Math.random() * TILES.length);
+      } while (wouldMatch(r, c, tile));
+      grid[r][c] = tile;
+    }
+  }
+}
+
+function wouldMatch(r, c, tile) {
+  // Check left
+  if (c >= 2 && grid[r][c-1] === tile && grid[r][c-2] === tile) return true;
+  // Check up
+  if (r >= 2 && grid[r-1] !== undefined && grid[r-1][c] === tile && grid[r-2] !== undefined && grid[r-2][c] === tile) return true;
+  return false;
+}
+
+// ── Render ──────────────────────────────────────────────
+function renderGrid() {
+  const gridEl = document.getElementById('grid');
+  gridEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.background = COLORS[grid[r][c]];
+      cell.textContent = TILES[grid[r][c]];
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener('click', () => onCellClick(r, c));
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+function getCell(r, c) {
+  return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+}
+
+// ── Selection ───────────────────────────────────────────
+function onCellClick(r, c) {
+  if (isAnimating) return;
+  if (movesLeft <= 0) return;
+
+  if (selectedCell === null) {
+    selectedCell = { r, c };
+    getCell(r, c).classList.add('selected');
+  } else if (selectedCell.r === r && selectedCell.c === c) {
+    // Deselect
+    getCell(r, c).classList.remove('selected');
+    selectedCell = null;
+  } else if (isAdjacent(selectedCell.r, selectedCell.c, r, c)) {
+    // Swap
+    const sr = selectedCell.r, sc = selectedCell.c;
+    getCell(sr, sc).classList.remove('selected');
+    selectedCell = null;
+    trySwap(sr, sc, r, c);
+  } else {
+    // Change selection
+    getCell(selectedCell.r, selectedCell.c).classList.remove('selected');
+    selectedCell = { r, c };
+    getCell(r, c).classList.add('selected');
+  }
+}
+
+function isAdjacent(r1, c1, r2, c2) {
+  return (Math.abs(r1 - r2) + Math.abs(c1 - c2)) === 1;
+}
+
+// ── Swap ────────────────────────────────────────────────
+async function trySwap(r1, c1, r2, c2) {
+  isAnimating = true;
+  swapTiles(r1, c1, r2, c2);
+  renderGrid();
+
+  const matches = findMatches();
+  if (matches.length === 0) {
+    // Swap back
+    await sleep(200);
+    swapTiles(r1, c1, r2, c2);
+    renderGrid();
+    isAnimating = false;
+    return;
+  }
+
+  movesLeft--;
+  updateUI();
+  await processMatches(matches);
+  isAnimating = false;
+
+  if (movesLeft <= 0) {
+    setTimeout(endGame, 300);
+  }
+}
+
+function swapTiles(r1, c1, r2, c2) {
+  const temp = grid[r1][c1];
+  grid[r1][c1] = grid[r2][c2];
+  grid[r2][c2] = temp;
+}
+
+// ── Match detection & processing ────────────────────────
+function findMatches() {
+  const matched = new Set();
+
+  // Horizontal
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 2; c++) {
+      const t = grid[r][c];
+      if (t === grid[r][c+1] && t === grid[r][c+2]) {
+        let end = c + 2;
+        while (end + 1 < COLS && grid[r][end+1] === t) end++;
+        for (let i = c; i <= end; i++) matched.add(`${r},${i}`);
+      }
+    }
+  }
+
+  // Vertical
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS - 2; r++) {
+      const t = grid[r][c];
+      if (t === grid[r+1][c] && t === grid[r+2][c]) {
+        let end = r + 2;
+        while (end + 1 < ROWS && grid[end+1][c] === t) end++;
+        for (let i = r; i <= end; i++) matched.add(`${i},${c}`);
+      }
+    }
+  }
+
+  // Convert to array of {r,c}
+  return [...matched].map(s => {
+    const [rr, cc] = s.split(',').map(Number);
+    return { r: rr, c: cc };
+  });
+}
+
+async function processMatches(initialMatches) {
+  let matches = initialMatches;
+
+  while (matches.length > 0) {
+    // Score
+    score += matches.length * 10;
+    updateUI();
+
+    // Flash animation
+    await flashCells(matches);
+
+    // Remove tiles
+    for (const {r, c} of matches) {
+      grid[r][c] = -1; // Mark empty
+    }
+
+    // Gravity
+    applyGravity();
+    // Fill new
+    fillEmpty();
+    renderGrid();
+
+    // Animate drops
+    await animateDrops();
+
+    await sleep(200);
+
+    // Check for chain matches
+    matches = findMatches();
+  }
+}
+
+async function flashCells(matches) {
+  // Show score pop on first match cell
+  if (matches.length > 0) {
+    const cellEl = getCell(matches[0].r, matches[0].c);
+    if (cellEl) {
+      showScorePop(cellEl, matches.length * 10);
+    }
+  }
+
+  const cells = matches.map(m => getCell(m.r, m.c)).filter(Boolean);
+  cells.forEach(c => c.classList.add('flash'));
+  await sleep(450);
+  cells.forEach(c => c.classList.remove('flash'));
+}
+
+function showScorePop(cell, pts) {
+  const pop = document.createElement('div');
+  pop.className = 'score-pop';
+  pop.textContent = '+' + pts;
+  cell.appendChild(pop);
+  setTimeout(() => pop.remove(), 800);
+}
+
+function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    let writeRow = ROWS - 1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (grid[r][c] !== -1) {
+        grid[writeRow][c] = grid[r][c];
+        if (writeRow !== r) grid[r][c] = -1;
+        writeRow--;
+      }
+    }
+  }
+}
+
+function fillEmpty() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === -1) {
+        grid[r][c] = Math.floor(Math.random() * TILES.length);
+      }
+    }
+  }
+}
+
+async function animateDrops() {
+  // Find new tiles: those that just fell (were -1 before fill) — we mark by checking freshly placed ones
+  // Simple approach: add drop animation to all cells, it only looks meaningful for cells that changed
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cellEl = getCell(r, c);
+      if (cellEl) {
+        cellEl.classList.add('drop');
+      }
+    }
+  }
+  await sleep(350);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cellEl = getCell(r, c);
+      if (cellEl) cellEl.classList.remove('drop');
+    }
+  }
+}
+
+// ── UI ──────────────────────────────────────────────────
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('moves').textContent = movesLeft;
+}
+
+function endGame() {
+  document.getElementById('finalScore').textContent = score + ' 分';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function restartGame() {
+  score = 0;
+  movesLeft = TOTAL_MOVES;
+  selectedCell = null;
+  isAnimating = false;
+  document.getElementById('overlay').classList.remove('show');
+  initGrid();
+  renderGrid();
+  updateUI();
+}
+
+// ── Helpers ─────────────────────────────────────────────
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ── Start ───────────────────────────────────────────────
+initGrid();
+renderGrid();
+updateUI();
+</script>
+
+</body>
+</html>
